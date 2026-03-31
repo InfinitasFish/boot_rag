@@ -46,5 +46,14 @@ class InvertedIndex:
         if not os.path.exists(docmap_dir_path):
             os.mkdir(docmap_dir_path)
 
-        pickle.dump(self.index, open(idx_save_path, 'wb'))
-        pickle.dump(self.docmap, open(docmap_save_path, 'wb'))
+        pickle.dump(self.index, open(idx_save_path, "wb"))
+        pickle.dump(self.docmap, open(docmap_save_path, "wb"))
+
+    def load(self, idx_load_path=INDEX_DB_PATH, docmap_load_path=DOCMAP_PATH):
+        if not os.path.exists(idx_load_path):
+            raise ValueError(f"Unexisting path to index DB: {idx_load_path}\n")
+        if not os.path.exists(docmap_load_path):
+            raise ValueError(f"Unexisting path to docmap: {docmap_load_path}\n")
+        
+        self.index = pickle.load(open(idx_load_path, "rb"))
+        self.docmap = pickle.load(open(docmap_load_path, "rb"))

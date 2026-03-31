@@ -20,6 +20,7 @@ search_parser.add_argument("query", type=str, help="Search query")
 build_parser = subparsers.add_parser("build", help="Build Index DB for movies")
 
 
+# adapting new "" quotes for strings instead of '' from now on
 def main() -> None:
 
     args = parser.parse_args()
@@ -29,25 +30,17 @@ def main() -> None:
         case "build":
             idx_db.build()
             idx_db.save()
-            test_token = "merida"
-            token_movies = idx_db.index[test_token]
-            print(f"Index Db build done. First document for token '{test_token}' = {token_movies[0]}")
-
+            print(f"Index DB build done.")
         case "search":
+            idx_db.load()
             query_tokens = preprocess_text_to_tokens_pipe(args.query)
-            found_movies = []
-            with open(MOVIES_JSON_PATH, 'r') as f:
-                movies_data = json.load(f)["movies"]
-            for movie in movies_data:
-                movie_tokens = preprocess_text_to_tokens_pipe(movie["title"])
-                if match_tokens_count(query_tokens, movie_tokens) > 0:
-                    found_movies.append(movie)
-
-            found_movies = sorted(found_movies, key=lambda d: d["id"])
-            for i, movie in enumerate(found_movies):
-                if i > 4:
-                    break
-                print(f"{i+1}. {movie['title']} {movie['id']}")
+            found_movies_ids = []
+            for token in query_tokens:
+                if token in idx_db.index:
+                    found_movies_ids.extend(idx_db.index[token])
+            for i, ids in enumerate(found_movies_ids):
+                if i >= 5: break
+                print(f"{i+1}. {idx_db.docmap[ids]['title']} {ids}")
         case _:
             parser.print_help()
 
