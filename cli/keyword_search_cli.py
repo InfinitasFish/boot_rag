@@ -4,7 +4,6 @@ import json
 import string
 import argparse
 import os
-from math import log
 import sys
 sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
@@ -26,6 +25,12 @@ term_freq_parser.add_argument("term", type=str, help="Term to get frequency of i
 
 idf_parser = subparsers.add_parser("idf", help="Get inverse document frequency score for a term")
 idf_parser.add_argument("term", type=str, help="Term to get idf score of")
+
+# tf-idf is a bit unstable for rare/common terms; doesn't account for the document length
+tf_idf_parser = subparsers.add_parser("tfidf", help="Calculate TF-IDF score for given movie_id and term")
+tf_idf_parser.add_argument("movie_id", type=int, help="Movie id")
+tf_idf_parser.add_argument("term", type=str, help="Term to get tf-idf score of")
+
 
 # adapting new "" quotes for strings instead of '' from now on
 def main() -> None:
@@ -50,20 +55,14 @@ def main() -> None:
                 print(f"{i+1}. {idx_db.docmap[ids]['title']} {ids}")
         case "tf":
             idx_db.load()
-            if args.movie_id in idx_db.docmap:
-                print(f"Movie: {idx_db.docmap[args.movie_id]['title']}; Term-freq: {args.term} {idx_db.get_tf(args.movie_id, args.term)}")
-            else:
-                print(f"Unknown movie_id {args.movie_id}")
+            print(f"Movie: {idx_db.docmap[args.movie_id]['title']}; Term-freq: {args.term} {idx_db.get_tf(args.movie_id, args.term)}")
         case "idf":
             idx_db.load()
-            term_token = preprocess_text_to_tokens_pipe(args.term)
-            if len(term_token) != 1:
-                raise ValueError("Idf accepts only one term\n")
-
-            # avoid zero-division
-            appearance_count = len(idx_db.index.get(term_token[0], []))
-            term_idf_score = log((len(idx_db.docmap) + 1) / (appearance_count + 1))
-            print(f"Inverse document frequency score of '{args.term}': {term_idf_score:.2f}")
+            print(f"Inverse document frequency score of '{args.term}': {idx_db.get_idf(args.term):.2f}")
+        case "tfidf":
+            idx_db.load()
+            movie_title = idx_db.docmap.get(args.movie_id, {"title": ''})["title"]
+            print(f"Tf-idf score of '{args.term}' in document '{movie_title} {args.movie_id}': {idx_db.get_tf_idf(args.movie_id, args.term):.2f}")
         case _:
             parser.print_help()
 

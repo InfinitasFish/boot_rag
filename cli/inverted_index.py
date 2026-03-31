@@ -2,6 +2,7 @@ import json
 import pickle
 import os
 from collections import Counter
+from math import log
 # import sys
 # sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
@@ -33,10 +34,25 @@ class InvertedIndex:
         return idx
     
     def get_tf(self, doc_id, term):
-        token = preprocess_text_to_tokens_pipe(term)
-        if len(token) != 1:
+        if not doc_id in self.docmap:
+            raise ValueError(f"Unknown doc_id in InvertedIndex.get_tf(): {doc_id}")
+        term_token = preprocess_text_to_tokens_pipe(term)
+        if len(term_token) != 1:
             raise ValueError("InvertedIndex.get_tf() accepts only one term\n")
-        return self.term_frequencies[doc_id][token[0]]
+        return self.term_frequencies[doc_id][term_token[0]]
+    
+    def get_idf(self, term):
+        term_token = preprocess_text_to_tokens_pipe(term)
+        if len(term_token) != 1:
+            raise ValueError("InvertedIndex.get_idf() accepts only one term\n")
+
+        # avoid zero-division
+        appearance_count = len(self.index.get(term_token[0], []))
+        term_idf_score = log((len(self.docmap) + 1) / (appearance_count + 1))
+        return term_idf_score
+    
+    def get_tf_idf(self, doc_id, term):
+        return self.get_tf(doc_id, term) * self.get_idf(term)
 
     def build(self, movies_path=MOVIES_JSON_PATH):
         with open(MOVIES_JSON_PATH, 'r') as f:
