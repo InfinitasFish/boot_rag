@@ -4,7 +4,7 @@ from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
-from consts import DOCS_JSON_PATH, TEXT_EMBEDDING_MODEL, EMBEDDINGS_SAVE_PATH
+from consts import DOCS_JSON_PATH, TEXT_EMBEDDING_MODEL, EMBEDDINGS_SAVE_PATH, DEFAULT_TOP_K
 
 
 def verify_model(model: str=TEXT_EMBEDDING_MODEL):
@@ -12,6 +12,7 @@ def verify_model(model: str=TEXT_EMBEDDING_MODEL):
     ss = SemanticSearch(model=model)
     print(f"Model loaded: {ss.model}")
     print(f"Max sequence length: {ss.model.max_seq_length}")
+
 
 def verify_embeddings(model: str=TEXT_EMBEDDING_MODEL, docs_json_path: str=DOCS_JSON_PATH):
     ss = SemanticSearch(model=model)
@@ -23,6 +24,16 @@ def verify_embeddings(model: str=TEXT_EMBEDDING_MODEL, docs_json_path: str=DOCS_
     print(f"Number of docs:   {len(docs_data)}")
     print(f"Embeddings shape: {num_emb} vectors in {emb_dim} dimensions")
 
+
+def embed_query_text(query: str, model: str=TEXT_EMBEDDING_MODEL):
+    ss = SemanticSearch(model=model)
+    query_emb = ss.generate_embedding(query)
+
+    print(f"Query: {query}")
+    print(f"First 3 dimensions: {query_emb[:3]}")
+    print(f"Shape: {query_emb.shape}")
+
+
 def embed_text(text: str, model: str=TEXT_EMBEDDING_MODEL):
     ss = SemanticSearch(model=model)
     embedding = ss.generate_embedding(text)
@@ -30,6 +41,30 @@ def embed_text(text: str, model: str=TEXT_EMBEDDING_MODEL):
     print(f"Text: {text}")
     print(f"First 3 dimensions: {embedding[:3]}")
     print(f"Dimensions: {embedding.shape[0]}")
+
+
+def search(query: str, limit: int=DEFAULT_TOP_K, model: str=TEXT_EMBEDDING_MODEL, docs_json_path: str=DOCS_JSON_PATH):
+    ss = SemanticSearch(model=model)
+
+    with open(docs_json_path, 'r') as f:
+        docs_data = json.load(f)["movies"]
+    ss.load_or_create_embeddings(docs_data)
+
+    top_matches_repr = ss.search(query, limit)
+    for i, doc in enumerate(top_matches_repr):
+        print(f"{i+1}. {doc['title']} (score: {doc['score']:.4f})\n  {doc['description'][:150]} ...\n")
+
+
+# list but ndarray but who tf cares
+def cosine_similarity(vec1: list, vec2: list) -> float:
+    dot = np.dot(vec1, vec2)
+    norm1 = np.linalg.norm(vec1)
+    norm2 = np.linalg.norm(vec2)
+    
+    if norm1 * norm2 == 0.0:
+        return 0.0
+    
+    return dot / (norm1 * norm2)
 
 
 class SemanticSearch:
@@ -45,6 +80,27 @@ class SemanticSearch:
         embedding = self.model.encode([text])[0]
         return embedding
     
+    def search(self, query: str, limit: int=DEFAULT_TOP_K) -> list[dict]:
+        if not self.embeddings:
+            raise ValueError("No embeddings loaded. Call `load_or_create_embeddings` first")
+        
+        query_emb = self.generate_embedding(query)
+        similarities = {}
+        for doc_id, doc_emb in self.embeddings.items():
+            similarity = cosine_similarity(query_emb, doc_emb)
+            similarities[doc_id] = similarity
+        
+        top_matches = sorted(list(similarities.items()), key=lambda it: it[1], reverse=True)[:limit]
+        top_matches_repr = []
+        for doc_id, similarity in top_matches:
+            top_matches_repr.append({
+                "score": similarity, 
+                "title": self.document_map[doc_id]["title"],
+                "description": self.document_map[doc_id]["description"],
+                })
+        
+        return top_matches_repr
+    
     def build_embeddings(self, documents: list[dict[int, str]], emb_save_path: str=EMBEDDINGS_SAVE_PATH) -> dict[int, list]:
         self.documents = documents
         for doc in tqdm(documents):
@@ -52,7 +108,7 @@ class SemanticSearch:
             doc_repr = f"{doc['title']}: {doc['description']}"
             doc_emb = self.model.encode([doc_repr])[0]
             self.embeddings[doc["id"]] = doc_emb
-        
+
         self.save(emb_save_path)
         return self.embeddings
     
@@ -79,5 +135,4 @@ class SemanticSearch:
                 return self.embeddings
         else:
             return self.build_embeddings(documents, emb_save_path)
-
 

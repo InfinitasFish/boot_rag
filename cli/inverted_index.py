@@ -6,7 +6,7 @@ from math import log
 # import sys
 # sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
-from consts import DOCS_JSON_PATH, INDEX_DB_PATH, DOCMAP_PATH, TERM_FREQ_PATH, DOC_LENGTHS_PATH, BM25_K1, BM25_B
+from consts import DOCS_JSON_PATH, INDEX_DB_PATH, DOCMAP_PATH, TERM_FREQ_PATH, DOC_LENGTHS_PATH, BM25_K1, BM25_B, DEFAULT_TOP_K
 from preprocess import preprocess_text_to_tokens_pipe
 
 
@@ -91,7 +91,7 @@ class InvertedIndex:
     def bm25(self, doc_id: int, term: str) -> float:
         return self.get_bm25_tf(doc_id, term) * self.get_bm25_idf(term)
 
-    def bm25_search(self, query: str, limit: int=5) -> list:
+    def bm25_search(self, query: str, limit: int=DEFAULT_TOP_K) -> list:
         query_terms = query.split()
         doc_to_score = {}
         for doc_id in self.docmap:
