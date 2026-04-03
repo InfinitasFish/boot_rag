@@ -103,8 +103,10 @@ class InvertedIndex:
         doc_to_score = list(sorted(doc_to_score.items(), key=lambda it: it[1], reverse=True)[:limit])
         return doc_to_score
 
-    def build(self, movies_path=DOCS_JSON_PATH):
-        with open(DOCS_JSON_PATH, 'r') as f:
+    def build(self, docs_path: str=DOCS_JSON_PATH):
+        if not os.path.exists(docs_path):
+            raise ValueError(f"Json path {docs_path} doesn't exist")
+        with open(docs_path, 'r') as f:
             docs_data = json.load(f)["movies"]
 
         for doc in docs_data:
@@ -118,25 +120,29 @@ class InvertedIndex:
         if not os.path.exists(idx_dir_path):
             os.mkdir(idx_dir_path)
         if os.path.exists(idx_save_path):
-            os.remove(idx_save_path)
+            raise ValueError(f"{idx_save_path} already exists, delete manually before saving db")
+            #os.remove(idx_save_path)
 
         docmap_dir_path = os.path.abspath(os.path.dirname(docmap_save_path))
         if not os.path.exists(docmap_dir_path):
             os.mkdir(docmap_dir_path)
         if os.path.exists(docmap_save_path):
-            os.remove(docmap_save_path)
+            raise ValueError(f"{docmap_save_path} already exists, delete manually before saving db")
+            #os.remove(docmap_save_path)
 
         tf_dir_path = os.path.abspath(os.path.dirname(tf_save_path))
         if not os.path.exists(tf_dir_path):
             os.mkdir(tf_dir_path)
         if os.path.exists(tf_save_path):
-            os.remove(tf_save_path)
+            raise ValueError(f"{tf_save_path} already exists, delete manually before saving db")
+            #os.remove(tf_save_path)
         
         doclen_dir_path = os.path.abspath(os.path.dirname(doclen_save_path))
         if not os.path.exists(doclen_dir_path):
             os.mkdir(doclen_dir_path)
         if os.path.exists(doclen_save_path):
-            os.remove(doclen_save_path)
+            raise ValueError(f"{doclen_save_path} already exists, delete manually before saving db")
+            #os.remove(doclen_save_path)
 
         pickle.dump(self.index, open(idx_save_path, "wb"))
         pickle.dump(self.docmap, open(docmap_save_path, "wb"))

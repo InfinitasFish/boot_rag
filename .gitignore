@@ -13,5 +13,7 @@ wheels/
 data/
 cache/
 
+# testing stuff
+temp.py
 
 чел ты
