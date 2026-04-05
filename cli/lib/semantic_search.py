@@ -1,10 +1,11 @@
 import json
 import os
+from math import ceil
 from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
-from consts import DOCS_JSON_PATH, TEXT_EMBEDDING_MODEL, EMBEDDINGS_SAVE_PATH, DEFAULT_TOP_K
+from consts import DOCS_JSON_PATH, TEXT_EMBEDDING_MODEL, EMBEDDINGS_SAVE_PATH, DEFAULT_TOP_K, DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP_SIZE
 
 
 def verify_model(model: str=TEXT_EMBEDDING_MODEL):
@@ -65,6 +66,12 @@ def cosine_similarity(vec1: list, vec2: list) -> float:
         return 0.0
     
     return dot / (norm1 * norm2)
+
+
+def split_text_chunks(text: str, chunk_size: int=DEFAULT_CHUNK_SIZE, overlap_size: int=DEFAULT_OVERLAP_SIZE) -> list:
+    text_words = text.split()
+    text_chunks = [' '.join(text_words[max(0, i * (chunk_size - overlap_size)): (chunk_size if i == 0 else (i + 1) * (chunk_size - overlap_size) + overlap_size)]) for i in range(ceil((len(text_words) - chunk_size) / (chunk_size - overlap_size)) + 1)]
+    return text_chunks
 
 
 class SemanticSearch:

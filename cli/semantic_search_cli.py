@@ -5,8 +5,8 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
-from consts import DOCS_JSON_PATH, TEXT_EMBEDDING_MODEL, DEFAULT_TOP_K
-from lib.semantic_search import SemanticSearch, verify_model, verify_embeddings, embed_text, embed_query_text, search
+from consts import DOCS_JSON_PATH, TEXT_EMBEDDING_MODEL, DEFAULT_TOP_K, DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP_SIZE
+from lib.semantic_search import SemanticSearch, verify_model, verify_embeddings, embed_text, embed_query_text, search, split_text_chunks
 
 parser = argparse.ArgumentParser(description="Semantic Search CLI")
 subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -31,6 +31,10 @@ semantic_search_parser.add_argument("model", type=str, nargs='?', default=TEXT_E
 semantic_search_parser.add_argument("query", type=str, help="Query to find relevant documents for")
 semantic_search_parser.add_argument("-l", "--limit", type=int, nargs='?', default=DEFAULT_TOP_K, help="Limit how much documents will contain in result")
 
+chunk_text_parser = subparsers.add_parser("chunk", help="Split text into chunks")
+chunk_text_parser.add_argument("text", type=str, help="Text to split")
+chunk_text_parser.add_argument("-chunk-size", "--chunk-size", type=int, nargs='?', default=DEFAULT_CHUNK_SIZE, help="Fixed size of a chunk")
+chunk_text_parser.add_argument("-overlap", "--overlap", type=int, nargs='?', default=DEFAULT_OVERLAP_SIZE, help="Amount of overlapping words between chunks")
 
 def main():
     args = parser.parse_args()
@@ -46,6 +50,11 @@ def main():
             embed_query_text(args.query, args.model)
         case "search":
             search(args.query, args.limit, args.model)
+        case "chunk":
+            text_chunks = split_text_chunks(args.text, args.chunk_size, args.overlap)
+            print(f"Chunking {len(args.text)} characters")
+            for i, chunk in enumerate(text_chunks):
+                print(f"{i + 1}. {chunk}")
         case _:
             parser.print_help()
 

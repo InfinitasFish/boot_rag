@@ -11,6 +11,8 @@ DOC_LENGTHS_PATH = os.path.join(ROOT_DIR, "cache/doc_lengths.pkl")
 BM25_K1 = 1.5
 BM25_B = 0.75
 DEFAULT_TOP_K = 5
+DEFAULT_CHUNK_SIZE = 200
+DEFAULT_OVERLAP_SIZE = 0
 
 TEXT_EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 EMBEDDINGS_SAVE_PATH = os.path.join(ROOT_DIR, "cache/doc_embeddings.npy")
