@@ -5,8 +5,8 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
-from consts import DOCS_JSON_PATH, TEXT_EMBEDDING_MODEL, DEFAULT_TOP_K, DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP_SIZE
-from lib.semantic_search import SemanticSearch, verify_model, verify_embeddings, embed_text, embed_query_text, search, split_text_chunks
+from consts import DOCS_JSON_PATH, TEXT_EMBEDDING_MODEL, DEFAULT_TOP_K, DEFAULT_CHUNK_SIZE, DEFAULT_SEMANTIC_CHUNK_SIZE, DEFAULT_OVERLAP_SIZE, DEFAULT_SEARCH_OVERLAP_SIZE
+from lib.semantic_search import SemanticSearch, verify_model, verify_embeddings, embed_text, embed_query_text, search, split_text_chunks, split_text_chunks_semantic, build_chunks_embed
 
 parser = argparse.ArgumentParser(description="Semantic Search CLI")
 subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -33,8 +33,21 @@ semantic_search_parser.add_argument("-l", "--limit", type=int, nargs='?', defaul
 
 chunk_text_parser = subparsers.add_parser("chunk", help="Split text into chunks")
 chunk_text_parser.add_argument("text", type=str, help="Text to split")
-chunk_text_parser.add_argument("-chunk-size", "--chunk-size", type=int, nargs='?', default=DEFAULT_CHUNK_SIZE, help="Fixed size of a chunk")
-chunk_text_parser.add_argument("-overlap", "--overlap", type=int, nargs='?', default=DEFAULT_OVERLAP_SIZE, help="Amount of overlapping words between chunks")
+chunk_text_parser.add_argument("--chunk-size", type=int, nargs='?', default=DEFAULT_CHUNK_SIZE, help="Fixed size of a chunk")
+chunk_text_parser.add_argument("--overlap", type=int, nargs='?', default=DEFAULT_OVERLAP_SIZE, help="Amount of overlapping words between chunks")
+
+semantic_chunk_parser = subparsers.add_parser("semantic_chunk", help="Split text into chunks by sentences")
+semantic_chunk_parser.add_argument("text", type=str, help="Text to split")
+semantic_chunk_parser.add_argument("--max-chunk-size", type=int, nargs='?', default=DEFAULT_SEMANTIC_CHUNK_SIZE, help="Amount of sentences in each chunk")
+semantic_chunk_parser.add_argument("--overlap", type=int, nargs='?', default=DEFAULT_OVERLAP_SIZE, help="Amount of overlapping words between chunks")
+
+# adding repeating arguments seems bad
+embed_chunk_parser = subparsers.add_parser("embed_chunks", help="Load documents and build chunk embeddings")
+embed_chunk_parser.add_argument("model", type=str, nargs='?', default=TEXT_EMBEDDING_MODEL, help="Model to use from sentence-transformers")
+embed_chunk_parser.add_argument("json_path", type=str, nargs='?', default=DOCS_JSON_PATH, help="Json path to get docs from")
+embed_chunk_parser.add_argument("--max-chunk-size", type=int, nargs='?', default=DEFAULT_SEMANTIC_CHUNK_SIZE, help="Amount of sentences in each chunk")
+embed_chunk_parser.add_argument("--overlap", type=int, nargs='?', default=DEFAULT_SEARCH_OVERLAP_SIZE, help="Amount of overlapping words between chunks")
+
 
 def main():
     args = parser.parse_args()
@@ -55,6 +68,13 @@ def main():
             print(f"Chunking {len(args.text)} characters")
             for i, chunk in enumerate(text_chunks):
                 print(f"{i + 1}. {chunk}")
+        case "semantic_chunk":
+            text_chunks = split_text_chunks_semantic(args.text, args.max_chunk_size, args.overlap)
+            print(f"Semantically chunking {len(args.text)} characters")
+            for i, chunk in enumerate(text_chunks):
+                print(f"{i + 1}. {chunk}")
+        case "embed_chunks":
+            build_chunks_embed(args.model, args.json_path, args.max_chunk_size, args.overlap)
         case _:
             parser.print_help()
 

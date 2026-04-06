@@ -1,11 +1,13 @@
 import json
 import os
+import re
 from math import ceil
 from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
-from consts import DOCS_JSON_PATH, TEXT_EMBEDDING_MODEL, EMBEDDINGS_SAVE_PATH, DEFAULT_TOP_K, DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP_SIZE
+from consts import (DOCS_JSON_PATH, TEXT_EMBEDDING_MODEL, EMBEDDINGS_SAVE_PATH, DEFAULT_TOP_K, DEFAULT_CHUNK_SIZE, DEFAULT_SEMANTIC_CHUNK_SIZE, 
+                    DEFAULT_OVERLAP_SIZE, DEFAULT_SEARCH_OVERLAP_SIZE, CHUNK_EMBEDDINGS_SAVE_PATH, CHUNK_META_SAVE_PATH)
 
 
 def verify_model(model: str=TEXT_EMBEDDING_MODEL):
@@ -67,11 +69,29 @@ def cosine_similarity(vec1: list, vec2: list) -> float:
     
     return dot / (norm1 * norm2)
 
-
+ 
 def split_text_chunks(text: str, chunk_size: int=DEFAULT_CHUNK_SIZE, overlap_size: int=DEFAULT_OVERLAP_SIZE) -> list:
+    if overlap_size >= chunk_size:
+        raise ValueError("Kys")
     text_words = text.split()
     text_chunks = [' '.join(text_words[max(0, i * (chunk_size - overlap_size)): (chunk_size if i == 0 else (i + 1) * (chunk_size - overlap_size) + overlap_size)]) for i in range(ceil((len(text_words) - chunk_size) / (chunk_size - overlap_size)) + 1)]
     return text_chunks
+
+
+def split_text_chunks_semantic(text: str, chunk_size: int=DEFAULT_SEMANTIC_CHUNK_SIZE, overlap_size: int=DEFAULT_OVERLAP_SIZE) -> list:
+    if overlap_size >= chunk_size:
+        raise ValueError("Kys")
+    text_sentences = re.split(r"(?<=[.!?])\s+", text)
+    text_chunks = [' '.join(text_sentences[max(0, i * (chunk_size - overlap_size)): (chunk_size if i == 0 else (i + 1) * (chunk_size - overlap_size) + overlap_size)]) for i in range(ceil((len(text_sentences) - chunk_size) / (chunk_size - overlap_size)) + 1)]
+    return text_chunks
+
+
+def build_chunks_embed(model: str=TEXT_EMBEDDING_MODEL, docs_path: str=DOCS_JSON_PATH, chunk_size: int=DEFAULT_SEMANTIC_CHUNK_SIZE, overlap_size: int=DEFAULT_SEARCH_OVERLAP_SIZE):
+    ss = ChunkedSemanticSearch(model=model)
+    with open(docs_path, 'r') as f:
+        docs_data = json.load(f)["movies"]
+    ss.load_or_create_chunk_embeddings(docs_data, chunk_size, overlap_size)
+    print(f"Generated {len(ss.chunk_metadata)} chunked embeddings")
 
 
 class SemanticSearch:
@@ -143,3 +163,71 @@ class SemanticSearch:
         else:
             return self.build_embeddings(documents, emb_save_path)
 
+
+class ChunkedSemanticSearch(SemanticSearch):
+    def __init__(self, model: str=TEXT_EMBEDDING_MODEL):
+        super().__init__(model)
+        self.chunk_text = None
+        self.chunk_embeddings = None
+        self.chunk_metadata = None
+
+    # define new build_embeddings for chunks
+    def build_chunk_embeddings(self, documents: list[dict[int, str]], chunk_size: int=DEFAULT_SEMANTIC_CHUNK_SIZE, overlap_size: int=DEFAULT_SEARCH_OVERLAP_SIZE,
+                               emb_save_path: str=CHUNK_EMBEDDINGS_SAVE_PATH, meta_save_path: str=CHUNK_META_SAVE_PATH) -> dict[int, list]:
+        self.documents = documents
+        self.chunk_text = {}
+        self.chunk_embeddings = {}
+        self.chunk_metadata = []
+        for doc in tqdm(documents):
+            self.document_map[doc["id"]] = doc
+            if not doc["description"].strip():
+                continue
+
+            doc_chunks = split_text_chunks_semantic(doc["description"], chunk_size, overlap_size)
+            self.chunk_text[doc["id"]] = doc_chunks
+
+            chunk_embeddings = self.model.encode(doc_chunks)
+            self.chunk_embeddings[doc["id"]] = chunk_embeddings
+
+            for i, chunk in enumerate(chunk_embeddings):
+                self.chunk_metadata.append({"movie_idx": doc["id"], "chunk_idx": i, "total_chunks": len(chunk_embeddings)})
+
+        self.save(emb_save_path, meta_save_path)
+        return self.chunk_embeddings
+
+    # redefine save method
+    def save(self, emb_save_path: str=CHUNK_EMBEDDINGS_SAVE_PATH, meta_save_path: str=CHUNK_META_SAVE_PATH):
+        if os.path.exists(emb_save_path):
+            raise ValueError(f"Chunk embeddings aleardy exists: {emb_save_path}")
+        if os.path.exists(meta_save_path):
+            raise ValueError(f"Chunk meta data aleardy exists: {meta_save_path}")
+
+        np.save(emb_save_path, self.chunk_embeddings)
+        with open(CHUNK_META_SAVE_PATH, 'w') as f:
+            json.dump(self.chunk_metadata, f)
+        print("Saved ChunkedSemanticSearch.chunk_embeddings and .chunk_metadata successfully")
+    
+    # define new load_or_create_embeddings
+    def load_or_create_chunk_embeddings(self, documents: list[dict], chunk_size: int=DEFAULT_SEMANTIC_CHUNK_SIZE, overlap_size: int=DEFAULT_SEARCH_OVERLAP_SIZE,
+                                        emb_save_path: str=CHUNK_EMBEDDINGS_SAVE_PATH, meta_save_path: str=CHUNK_META_SAVE_PATH) -> dict[int, list]:
+        # cache doesn't exists -> build embeddings and return
+        if not os.path.exists(emb_save_path) and not os.path.exists(meta_save_path):
+            return self.build_chunk_embeddings(documents, chunk_size, overlap_size, emb_save_path, meta_save_path)
+        
+        # cache exists -> populate self.documents, .documents_map and .chunk_text, load embeddings and meta data, return
+        self.documents = documents
+        self.chunk_text = {}
+        for doc in tqdm(documents):
+            self.document_map[doc["id"]] = doc
+            if not doc["description"].strip():
+                continue
+
+            # maybe it's better to save it too or populate using loaded meta data, but I'm not sure
+            doc_chunks = split_text_chunks_semantic(doc["description"], chunk_size, overlap_size)
+            self.chunk_text[doc["id"]] = doc_chunks
+        
+        self.chunk_embeddings = np.load(emb_save_path, allow_pickle=True).item()
+        with open(meta_save_path, 'r') as f:
+            self.chunk_metadata = json.load(f)
+        return self.chunk_embeddings
+        
