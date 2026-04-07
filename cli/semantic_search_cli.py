@@ -6,7 +6,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
 from consts import DOCS_JSON_PATH, TEXT_EMBEDDING_MODEL, DEFAULT_TOP_K, DEFAULT_CHUNK_SIZE, DEFAULT_SEMANTIC_CHUNK_SIZE, DEFAULT_OVERLAP_SIZE, DEFAULT_SEARCH_OVERLAP_SIZE
-from lib.semantic_search import SemanticSearch, verify_model, verify_embeddings, embed_text, embed_query_text, search, split_text_chunks, split_text_chunks_semantic, build_chunks_embed
+from lib.semantic_search import SemanticSearch, verify_model, verify_embeddings, embed_text, embed_query_text, semantic_search, split_text_chunks, split_text_chunks_semantic, build_chunks_embed, semantic_chunk_search
 
 parser = argparse.ArgumentParser(description="Semantic Search CLI")
 subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -48,6 +48,11 @@ embed_chunk_parser.add_argument("json_path", type=str, nargs='?', default=DOCS_J
 embed_chunk_parser.add_argument("--max-chunk-size", type=int, nargs='?', default=DEFAULT_SEMANTIC_CHUNK_SIZE, help="Amount of sentences in each chunk")
 embed_chunk_parser.add_argument("--overlap", type=int, nargs='?', default=DEFAULT_SEARCH_OVERLAP_SIZE, help="Amount of overlapping words between chunks")
 
+semantic_chunk_search_parser = subparsers.add_parser("search_chunked", help="Use semantic chunk search to find most relevant documents")
+semantic_chunk_search_parser.add_argument("model", type=str, nargs='?', default=TEXT_EMBEDDING_MODEL, help="Model to use from sentence-transformers")
+semantic_chunk_search_parser.add_argument("query", type=str, help="Query to find relevant documents for")
+semantic_chunk_search_parser.add_argument("-l", "--limit", type=int, nargs='?', default=DEFAULT_TOP_K, help="Limit how much documents will contain in result")
+
 
 def main():
     args = parser.parse_args()
@@ -62,7 +67,7 @@ def main():
         case "embedquery":
             embed_query_text(args.query, args.model)
         case "search":
-            search(args.query, args.limit, args.model)
+            semantic_search(args.query, args.limit, args.model)
         case "chunk":
             text_chunks = split_text_chunks(args.text, args.chunk_size, args.overlap)
             print(f"Chunking {len(args.text)} characters")
@@ -75,6 +80,8 @@ def main():
                 print(f"{i + 1}. {chunk}")
         case "embed_chunks":
             build_chunks_embed(args.model, args.json_path, args.max_chunk_size, args.overlap)
+        case "search_chunked":
+            semantic_chunk_search(args.query, args.limit, args.model)
         case _:
             parser.print_help()
 

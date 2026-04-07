@@ -46,7 +46,7 @@ def embed_text(text: str, model: str=TEXT_EMBEDDING_MODEL):
     print(f"Dimensions: {embedding.shape[0]}")
 
 
-def search(query: str, limit: int=DEFAULT_TOP_K, model: str=TEXT_EMBEDDING_MODEL, docs_json_path: str=DOCS_JSON_PATH):
+def semantic_search(query: str, limit: int=DEFAULT_TOP_K, model: str=TEXT_EMBEDDING_MODEL, docs_json_path: str=DOCS_JSON_PATH):
     ss = SemanticSearch(model=model)
 
     with open(docs_json_path, 'r') as f:
@@ -81,9 +81,26 @@ def split_text_chunks(text: str, chunk_size: int=DEFAULT_CHUNK_SIZE, overlap_siz
 def split_text_chunks_semantic(text: str, chunk_size: int=DEFAULT_SEMANTIC_CHUNK_SIZE, overlap_size: int=DEFAULT_OVERLAP_SIZE) -> list:
     if overlap_size >= chunk_size:
         raise ValueError("Kys")
+
+    text = text.strip()
+    if not text:
+        return []
+
     text_sentences = re.split(r"(?<=[.!?])\s+", text)
     text_chunks = [' '.join(text_sentences[max(0, i * (chunk_size - overlap_size)): (chunk_size if i == 0 else (i + 1) * (chunk_size - overlap_size) + overlap_size)]) for i in range(ceil((len(text_sentences) - chunk_size) / (chunk_size - overlap_size)) + 1)]
     return text_chunks
+
+
+def semantic_chunk_search(query: str, limit: int=DEFAULT_TOP_K, model: str=TEXT_EMBEDDING_MODEL, docs_json_path: str=DOCS_JSON_PATH):
+    ss = ChunkedSemanticSearch(model=model)
+    with open(docs_json_path, 'r') as f:
+        docs_data = json.load(f)["movies"]
+    ss.load_or_create_chunk_embeddings(docs_data)
+
+    relevant_docs_format = ss.search(query, limit)
+    for i, doc in enumerate(relevant_docs_format):
+        print(f"\n{i + 1}. {doc['title']} (score: {doc['score']:.4f})")
+        print(f"   {doc['document']}...")
 
 
 def build_chunks_embed(model: str=TEXT_EMBEDDING_MODEL, docs_path: str=DOCS_JSON_PATH, chunk_size: int=DEFAULT_SEMANTIC_CHUNK_SIZE, overlap_size: int=DEFAULT_SEARCH_OVERLAP_SIZE):
@@ -97,9 +114,9 @@ def build_chunks_embed(model: str=TEXT_EMBEDDING_MODEL, docs_path: str=DOCS_JSON
 class SemanticSearch:
     def __init__(self, model: str=TEXT_EMBEDDING_MODEL):
         self.model = SentenceTransformer(model)
-        self.embeddings = {}
-        self.documents = {}
-        self.document_map = {}
+        self.embeddings = None
+        self.documents = None
+        self.document_map = None
 
     def generate_embedding(self, text: str) -> list:
         if not text.strip():
@@ -171,12 +188,42 @@ class ChunkedSemanticSearch(SemanticSearch):
         self.chunk_embeddings = None
         self.chunk_metadata = None
 
+    def search(self, query: str, limit: int=DEFAULT_TOP_K) -> list[dict]:
+        if not self.chunk_embeddings or not self.chunk_metadata:
+            raise ValueError("Embeddings aren't built/loaded, can't search")
+        
+        docs_agg_scores = {}
+        query_emb = self.generate_embedding(query)
+        for doc_id, chunk_embeds in tqdm(self.chunk_embeddings.items()):
+            # calculating max similarity as document score
+            doc_score = -float("inf")
+            # kinda slow I guess
+            for chunk in chunk_embeds:
+                similarity = cosine_similarity(query_emb, chunk)
+                doc_score = similarity if similarity > doc_score else doc_score
+    
+            docs_agg_scores[doc_id] = doc_score
+        
+        most_relevant_docs = sorted(list(docs_agg_scores.items()), key=lambda it: it[1], reverse=True)[:limit]
+        format_result = []
+        for doc_id, score in most_relevant_docs:
+            format_result.append({
+                "id": doc_id,
+                "title": self.document_map[doc_id]["title"],
+                "document": self.document_map[doc_id]["description"][:100],
+                "score": round(score, 6),
+            })
+            
+        return format_result
+
+
     # define new build_embeddings for chunks
     def build_chunk_embeddings(self, documents: list[dict[int, str]], chunk_size: int=DEFAULT_SEMANTIC_CHUNK_SIZE, overlap_size: int=DEFAULT_SEARCH_OVERLAP_SIZE,
                                emb_save_path: str=CHUNK_EMBEDDINGS_SAVE_PATH, meta_save_path: str=CHUNK_META_SAVE_PATH) -> dict[int, list]:
         self.documents = documents
         self.chunk_text = {}
         self.chunk_embeddings = {}
+        # basically I've changed the supposed implementation a bit, so metadata is redundant
         self.chunk_metadata = []
         for doc in tqdm(documents):
             self.document_map[doc["id"]] = doc

@@ -7,7 +7,7 @@ from math import log
 # sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
 from consts import DOCS_JSON_PATH, INDEX_DB_PATH, DOCMAP_PATH, TERM_FREQ_PATH, DOC_LENGTHS_PATH, BM25_K1, BM25_B, DEFAULT_TOP_K
-from preprocess import preprocess_text_to_tokens_pipe
+from lib.preprocess import preprocess_text_to_tokens_pipe
 
 
 # forward index maps location to value,
@@ -91,7 +91,7 @@ class InvertedIndex:
     def bm25(self, doc_id: int, term: str) -> float:
         return self.get_bm25_tf(doc_id, term) * self.get_bm25_idf(term)
 
-    def bm25_search(self, query: str, limit: int=DEFAULT_TOP_K) -> list:
+    def bm25_search(self, query: str, limit: int=DEFAULT_TOP_K) -> list[dict]:
         query_terms = query.split()
         doc_to_score = {}
         for doc_id in self.docmap:
@@ -101,7 +101,17 @@ class InvertedIndex:
             doc_to_score[doc_id] = bm25_score_sum
         
         doc_to_score = list(sorted(doc_to_score.items(), key=lambda it: it[1], reverse=True)[:limit])
-        return doc_to_score
+
+        search_results = []
+        for doc_id, score in doc_to_score:
+            search_results.append({
+                "doc_id": doc_id, 
+                "title": self.docmap[doc_id]["title"],
+                "score": score,
+                "description": self.docmap[doc_id]["description"][:100],
+                })
+
+        return search_results
 
     def build(self, docs_path: str=DOCS_JSON_PATH):
         if not os.path.exists(docs_path):
