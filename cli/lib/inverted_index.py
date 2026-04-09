@@ -105,10 +105,10 @@ class InvertedIndex:
         search_results = []
         for doc_id, score in doc_to_score:
             search_results.append({
-                "doc_id": doc_id, 
+                "id": doc_id, 
                 "title": self.docmap[doc_id]["title"],
                 "score": score,
-                "description": self.docmap[doc_id]["description"][:100],
+                "description": self.docmap[doc_id]["description"],
                 })
 
         return search_results

@@ -7,7 +7,7 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
-from consts import DOC_LENGTHS_PATH, STOP_WORDS_PATH, INDEX_DB_PATH, DOCMAP_PATH, BM25_K1, BM25_B
+from consts import DOC_LENGTHS_PATH, STOP_WORDS_PATH, INDEX_DB_PATH, DOCMAP_PATH, DEFAULT_DESCRIPTION_LEN, BM25_K1, BM25_B
 from lib.preprocess import preprocess_text_to_tokens_pipe, match_tokens_count
 from lib.inverted_index import InvertedIndex
 
@@ -87,7 +87,7 @@ def main() -> None:
             idx_db.load()
             top_k_docs = idx_db.bm25_search(args.query)
             for i, doc in enumerate(top_k_docs):
-                print(f"{i+1}. ({doc['doc_id']}) {doc['title']} - Score: {doc['score']:.2f}\n  {doc['description']}")
+                print(f"{i + 1}. ({doc['id']}) {doc['title']} - Score: {doc['score']:.2f}\n  {doc['description'][:DEFAULT_DESCRIPTION_LEN]}")
         case _:
             parser.print_help()
 

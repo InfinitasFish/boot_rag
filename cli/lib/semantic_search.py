@@ -6,7 +6,7 @@ from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
-from consts import (DOCS_JSON_PATH, TEXT_EMBEDDING_MODEL, EMBEDDINGS_SAVE_PATH, DEFAULT_TOP_K, DEFAULT_CHUNK_SIZE, DEFAULT_SEMANTIC_CHUNK_SIZE, 
+from consts import (DOCS_JSON_PATH, TEXT_EMBEDDING_MODEL, EMBEDDINGS_SAVE_PATH, DEFAULT_DESCRIPTION_LEN, DEFAULT_TOP_K, DEFAULT_CHUNK_SIZE, DEFAULT_SEMANTIC_CHUNK_SIZE, 
                     DEFAULT_OVERLAP_SIZE, DEFAULT_SEARCH_OVERLAP_SIZE, CHUNK_EMBEDDINGS_SAVE_PATH, CHUNK_META_SAVE_PATH)
 
 
@@ -55,7 +55,7 @@ def semantic_search(query: str, limit: int=DEFAULT_TOP_K, model: str=TEXT_EMBEDD
 
     top_matches_repr = ss.search(query, limit)
     for i, doc in enumerate(top_matches_repr):
-        print(f"{i+1}. {doc['title']} (score: {doc['score']:.4f})\n  {doc['description'][:150]} ...\n")
+        print(f"{i+1}. {doc['title']} (score: {doc['score']:.4f})\n  {doc['description'][:DEFAULT_DESCRIPTION_LEN]}...\n")
 
 
 # list but ndarray but who tf cares
@@ -100,7 +100,7 @@ def semantic_chunk_search(query: str, limit: int=DEFAULT_TOP_K, model: str=TEXT_
     relevant_docs_format = ss.search(query, limit)
     for i, doc in enumerate(relevant_docs_format):
         print(f"\n{i + 1}. {doc['title']} (score: {doc['score']:.4f})")
-        print(f"   {doc['document']}...")
+        print(f"   {doc['description'][:DEFAULT_DESCRIPTION_LEN]}...")
 
 
 def build_chunks_embed(model: str=TEXT_EMBEDDING_MODEL, docs_path: str=DOCS_JSON_PATH, chunk_size: int=DEFAULT_SEMANTIC_CHUNK_SIZE, overlap_size: int=DEFAULT_SEARCH_OVERLAP_SIZE):
@@ -114,9 +114,9 @@ def build_chunks_embed(model: str=TEXT_EMBEDDING_MODEL, docs_path: str=DOCS_JSON
 class SemanticSearch:
     def __init__(self, model: str=TEXT_EMBEDDING_MODEL):
         self.model = SentenceTransformer(model)
-        self.embeddings = None
-        self.documents = None
-        self.document_map = None
+        self.embeddings = {}
+        self.documents = []
+        self.document_map = {}
 
     def generate_embedding(self, text: str) -> list:
         if not text.strip():
@@ -138,6 +138,7 @@ class SemanticSearch:
         top_matches_repr = []
         for doc_id, similarity in top_matches:
             top_matches_repr.append({
+                "id": doc_id,
                 "score": similarity, 
                 "title": self.document_map[doc_id]["title"],
                 "description": self.document_map[doc_id]["description"],
@@ -210,7 +211,7 @@ class ChunkedSemanticSearch(SemanticSearch):
             format_result.append({
                 "id": doc_id,
                 "title": self.document_map[doc_id]["title"],
-                "document": self.document_map[doc_id]["description"][:100],
+                "description": self.document_map[doc_id]["description"],
                 "score": round(score, 6),
             })
             
