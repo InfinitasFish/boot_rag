@@ -13,7 +13,7 @@ def main():
 
     prompt_question = "Why is Boot.dev such a great place to learn about RAG? Use one paragraph maximum."
     messages = [{"role": "user", "content": prompt_question}]
-    response = ollama.chat(model=LLM_MODEL, messages=messages, options={"seed": LLM_SEED, "temperature": LLM_TEMPERATURE})
+    response = ollama.chat(model=LLM_MODEL, messages=messages, options={"seed": LLM_SEED, "temperature": LLM_TEMPERATURE, "think": True})
 
     response_msg_str = response["message"]["content"]
     prompt_tokens = response["prompt_eval_count"]
