@@ -1,18 +1,24 @@
 import json
 
 from consts import DOCS_JSON_PATH, GOLD_DATASET_JSON_PATH, DEFAULT_TOP_K, DEFAULT_RRF_K
-from lib.hybrid_search import hybrid_rrf_score_search
+from lib.hybrid_search import hybrid_search_init, enhance_query, hybrid_rrf_search, rerank_search_results, hybrid_rrf_res_log
 
 
-def evaluate_rrf_search(limit: int=DEFAULT_TOP_K, k: float=DEFAULT_RRF_K, docs_json_path: str=DOCS_JSON_PATH, eval_ds_path: str=GOLD_DATASET_JSON_PATH):
+# applying enhance_query and reranking to be able to evaluate each method (ablation study)
+def evaluate_rrf_search(limit: int=DEFAULT_TOP_K, k: float=DEFAULT_RRF_K, enhance_method: str=None, rerank_method: str=None, eval_ds_path: str=GOLD_DATASET_JSON_PATH):
+    hs = hybrid_search_init()
+    
     with open(eval_ds_path, 'r') as f:
         test_cases_data = json.load(f)["test_cases"]
 
     print(f"RRF Search k = {k}")
     for case in test_cases_data:
-        query = case["query"]
         gt = case["relevant_docs"]
-        pred = hybrid_rrf_score_search(query, k, limit)
+
+        query = enhance_query(case["query"], enhance_method)
+        pred = hybrid_rrf_search(hs, query, k, limit)[:limit]
+        pred = rerank_search_results(query, pred, rerank_method)
+
         found_relevant_docs = [doc["title"] for doc in pred if doc["title"] in gt]
         precision_k = len(found_relevant_docs) / len(pred)
         print(f"- Query: {query}")
