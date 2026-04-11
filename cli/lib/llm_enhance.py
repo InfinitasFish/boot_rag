@@ -8,6 +8,9 @@ from consts import DEFAULT_DESCRIPTION_LEN, LLM_MODEL, LLM_SEED, LLM_TEMPERATURE
 from prompts import LLM_ENHANCE_SYSTEM_PROMPT, QUERY_ENHANCE_SPELL_PROMPTf, QUERY_REWRITE_PROMPTf, QUERY_EXPAND_PROMPTf, RERANK_SEARCH_RESULTSf, BATCH_RERANK_SEARCH_RESULTSf
 
 
+class EnhanceQueryOutput(BaseModel):
+    query: str
+
 class IndividualScoreOutput(BaseModel):
     score: float
 
@@ -18,8 +21,8 @@ class BatchRerankOutput(BaseModel):
 def enhance_spelling_user_query(query: str, model: str=LLM_MODEL) -> str:
     enhance_prompt = QUERY_ENHANCE_SPELL_PROMPTf(query)
     messages = [{"role": "system", "content": LLM_ENHANCE_SYSTEM_PROMPT}, {"role": "user", "content": enhance_prompt}]
-    response = ollama.chat(model=model, messages=messages, options={"seed": LLM_SEED, "temperature": LLM_TEMPERATURE,})
-    new_query = response["message"]["content"]
+    response = ollama.chat(model=model, messages=messages, format=EnhanceQueryOutput.model_json_schema(), options={"seed": LLM_SEED, "temperature": LLM_TEMPERATURE,})
+    new_query = EnhanceQueryOutput.model_validate_json(response["message"]["content"]).query
 
     return new_query
 
@@ -27,8 +30,8 @@ def enhance_spelling_user_query(query: str, model: str=LLM_MODEL) -> str:
 def rewrite_user_query(query: str, model: str=LLM_MODEL) -> str:
     rewrite_prompt = QUERY_REWRITE_PROMPTf(query)
     messages = [{"role": "system", "content": LLM_ENHANCE_SYSTEM_PROMPT}, {"role": "user", "content": rewrite_prompt}]
-    response = ollama.chat(model=model, messages=messages, options={"seed": LLM_SEED, "temperature": LLM_TEMPERATURE,})
-    new_query = response["message"]["content"]
+    response = ollama.chat(model=model, messages=messages, format=EnhanceQueryOutput.model_json_schema(), options={"seed": LLM_SEED, "temperature": LLM_TEMPERATURE,})
+    new_query = EnhanceQueryOutput.model_validate_json(response["message"]["content"]).query
 
     return new_query
 
@@ -36,8 +39,8 @@ def rewrite_user_query(query: str, model: str=LLM_MODEL) -> str:
 def expand_user_query(query: str, model: str=LLM_MODEL) -> str:
     expand_prompt = QUERY_EXPAND_PROMPTf(query)
     messages = [{"role": "system", "content": LLM_ENHANCE_SYSTEM_PROMPT}, {"role": "user", "content": expand_prompt}]
-    response = ollama.chat(model=model, messages=messages, options={"seed": LLM_SEED, "temperature": LLM_TEMPERATURE,})
-    new_query = response["message"]["content"]
+    response = ollama.chat(model=model, messages=messages, format=EnhanceQueryOutput.model_json_schema(), options={"seed": LLM_SEED, "temperature": LLM_TEMPERATURE,})
+    new_query = EnhanceQueryOutput.model_validate_json(response["message"]["content"]).query
 
     return new_query
 
@@ -70,7 +73,6 @@ def batch_rerank_search_results(query: str, search_results: list[dict], model: s
         # "[1, 2, 3]" -> [1, 2, 3]
         # ranked_idxs = response["message"]["content"].strip()[1:-1].split(',')
         ranked_idxs = BatchRerankOutput.model_validate_json(response["message"]["content"]).ranks
-        print(len(search_results), len(ranked_idxs), '\n', ranked_idxs)
         assert len(ranked_idxs) == len(search_results)
     except ValueError as e:
         print(e)

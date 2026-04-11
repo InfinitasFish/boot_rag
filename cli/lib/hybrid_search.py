@@ -18,42 +18,41 @@ def minmax_normalize_scores(scores: list[float]) -> list[float]:
     return scores
 
 
-def hybrid_norm_score_search(query: str, alpha: float=DEFAULT_ALPHA_WEIGHT, limit: int=DEFAULT_TOP_K, docs_json_path: str=DOCS_JSON_PATH):
+def hybrid_search_init(docs_json_path: str=DOCS_JSON_PATH) -> "HybridSearch":
     with open(docs_json_path, 'r') as f:
         docs_data = json.load(f)["movies"]
     hs = HybridSearch(docs_data)
-    search_results = hs.weighted_search(query, alpha, limit)
+    return hs
+
+
+def hybrid_norm_search(hs: "HybridSearch", query: str, alpha: float=DEFAULT_ALPHA_WEIGHT, limit: int=DEFAULT_TOP_K) -> list[dict]:
+    search_results = hs.weighted_search(query, alpha, limit * 5)
+    return search_results
+
+
+def hybrid_norm_res_log(search_results: list[dict]):
     for i, doc in enumerate(search_results):
         print(f"{i + 1}. {doc['title']}\n   Hybrid Score: {doc['hybrid_score']:.3f}")
         print(f"   BM25: {doc['bm25score']:.3f}, Semantic: {doc['semantic_score']:.3f}")
-        print(f"   {doc['description'][:DEFAULT_DESCRIPTION_LEN]}...")
+        print(f"   {doc['description'][:DEFAULT_DESCRIPTION_LEN]}...\n")
 
 
-def hybrid_rrf_score_search(query: str, k: float=DEFAULT_RRF_K, limit: int=DEFAULT_TOP_K, enhance_method: str=None, rerank_method: str=None, docs_json_path: str=DOCS_JSON_PATH):
-    with open(docs_json_path, 'r') as f:
-        docs_data = json.load(f)["movies"]
-    hs = HybridSearch(docs_data)
-
-    # better to move this logic out btw
-    # query enhance
+def enhance_query(query: str, enhance_method: str=None) -> str:
     if enhance_method == "spell":
-        new_query = enhance_spelling_user_query(query)
+        query = enhance_spelling_user_query(query)
     elif enhance_method == "rewrite":
-        new_query = rewrite_user_query(query)
+        query = rewrite_user_query(query)
     elif enhance_method == "expand":
-        new_query = expand_user_query(query)
-    if enhance_method is not None:
-        print(f"Enhanced query ({enhance_method}): '{query}' -> '{new_query}'\n")
-        query = new_query
+        query = expand_user_query(query)
+    return query
 
-    # search results reranking
-    if rerank_method is not None:
-        print(f"Re-ranking top {limit} results using {rerank_method} method...")
-        print(f"Reciprocal Rank Fusion Results for '{query}' (k={k}):\n")
-        search_results = hs.rrf_search(query, k, limit * 5)
-    else:
-        search_results = hs.rrf_search(query, k, limit)
-    
+
+def hybrid_rrf_search(hs: "HybridSearch", query: str, k: float=DEFAULT_RRF_K, limit: int=DEFAULT_TOP_K) -> list[dict]:
+    search_results = hs.rrf_search(query, k, limit * 5)
+    return search_results
+
+
+def rerank_search_results(query: str, search_results: list[dict], rerank_method: str=None) -> list[dict]:
     if rerank_method == "individual":
         idx_to_ranks = rerank_search_results(query, search_results)
         search_results = [search_results[idx] for idx, _ in idx_to_ranks]
@@ -63,13 +62,14 @@ def hybrid_rrf_score_search(query: str, k: float=DEFAULT_RRF_K, limit: int=DEFAU
     elif rerank_method == "cross_encoder":
         ranked_idxs = cross_encoder_rerank_search_results(query, search_results)
         search_results = [search_results[idx] for idx in ranked_idxs]
+    return search_results
 
-    for i, doc in enumerate(search_results[:limit]):
+
+def hybrid_rrf_res_log(search_results: list[dict]):
+    for i, doc in enumerate(search_results):
         print(f"{i + 1}. {doc['title']}\n   RRF Score: {doc['rrf_score']:.3f}")
         print(f"   BM25 Rank: {doc['bm25_rank']}, Semantic Rank: {doc['semantic_rank']}")
-        print(f"   {doc['description'][:DEFAULT_DESCRIPTION_LEN]}...")
-    
-    return search_results[:limit]
+        print(f"   {doc['description'][:DEFAULT_DESCRIPTION_LEN]}...\n")
 
 
 class HybridSearch:

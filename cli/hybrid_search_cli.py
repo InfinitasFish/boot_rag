@@ -3,7 +3,7 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
-from lib.hybrid_search import minmax_normalize_scores, hybrid_norm_score_search, hybrid_rrf_score_search
+from lib.hybrid_search import minmax_normalize_scores, hybrid_search_init, hybrid_norm_search, hybrid_norm_res_log, enhance_query, hybrid_rrf_search, rerank_search_results, hybrid_rrf_res_log
 from lib.llm_enhance import enhance_spelling_user_query, rewrite_user_query, expand_user_query
 from consts import DEFAULT_TOP_K, DEFAULT_ALPHA_WEIGHT, DEFAULT_RRF_K
 
@@ -17,6 +17,8 @@ def main() -> None:
 
     hybrid_norm_search_parser = subparsers.add_parser("weighted-search", help="Search relevant docs using hybrid normalized score (bm25 & semantic)")
     hybrid_norm_search_parser.add_argument("query", type=str, help="Query to find relevant documents for")
+    hybrid_norm_search_parser.add_argument("--enhance", type=str, choices=["spell", "rewrite", "expand"], help="Query enhancement method")
+    hybrid_norm_search_parser.add_argument("--rerank-method", type=str, choices=["individual", "batch", "cross_encoder"], help="Rerank search results using LLM")
     hybrid_norm_search_parser.add_argument("--limit", type=int, nargs='?', default=DEFAULT_TOP_K, help="Limit how much documents will contain in result")
     hybrid_norm_search_parser.add_argument("--alpha", type=float, nargs='?', default=DEFAULT_ALPHA_WEIGHT, help="Alpha parameter to weight bm25 & semantic scores")
 
@@ -35,9 +37,32 @@ def main() -> None:
             for score in norm_scores:
                 print(f" * {score:.4f}")
         case "weighted-search":
-            hybrid_norm_score_search(args.query, args.alpha, args.limit)
+            hs = hybrid_search_init()
+
+            query = enhance_query(args.query)
+            if args.enhance is not None:
+                print(f"Enhanced query ({args.enhance}): '{args.query}' -> '{query}'\n")
+    
+            search_res = hybrid_norm_search(hs, args.query, args.alpha, args.limit)[:args.limit]
+            if args.rerank_method is not None:
+                print(f"Re-ranking top {args.limit} results using {args.rerank_method} method...")
+            search_res = rerank_search_results(query, search_res, args.rerank_method)
+    
+            hybrid_norm_res_log(search_res)
         case "rrf-search":
-            hybrid_rrf_score_search(args.query, args.k, args.limit, args.enhance, args.rerank_method)
+            hs = hybrid_search_init()
+
+            query = enhance_query(args.query)
+            if args.enhance is not None:
+                print(f"Enhanced query ({args.enhance}): '{args.query}' -> '{query}'\n")
+
+            search_res = hybrid_rrf_search(hs, query, args.k, args.limit)[:args.limit]
+            if args.rerank_method is not None:
+                print(f"Re-ranking top {args.limit} results using {args.rerank_method} method...")
+            search_res = rerank_search_results(query, search_res, args.rerank_method)
+
+            print(f"Reciprocal Rank Fusion Results for '{query}' (k={args.k}):\n")
+            hybrid_rrf_res_log(search_res)
         case _:
             parser.print_help()
 
