@@ -3,6 +3,7 @@ import json
 
 from lib.inverted_index import InvertedIndex
 from lib.semantic_search import ChunkedSemanticSearch
+from lib.llm_enhance import rerank_search_results, batch_rerank_search_results
 from consts import DOCS_JSON_PATH, INDEX_DB_PATH, DEFAULT_DESCRIPTION_LEN, DEFAULT_TOP_K, DEFAULT_ALPHA_WEIGHT, DEFAULT_RRF_K
 
 
@@ -28,11 +29,25 @@ def hybrid_norm_score_search(query: str, alpha: float=DEFAULT_ALPHA_WEIGHT, limi
         print(f"   {doc['description'][:DEFAULT_DESCRIPTION_LEN]}...")
 
 
-def hybrid_rrf_score_search(query: str, k: float=DEFAULT_RRF_K, limit: int=DEFAULT_TOP_K, docs_json_path: str=DOCS_JSON_PATH):
+def hybrid_rrf_score_search(query: str, k: float=DEFAULT_RRF_K, limit: int=DEFAULT_TOP_K, rerank_method: str=None, docs_json_path: str=DOCS_JSON_PATH):
     with open(docs_json_path, 'r') as f:
         docs_data = json.load(f)["movies"]
     hs = HybridSearch(docs_data)
-    search_results = hs.rrf_search(query, k, limit)
+
+    if rerank_method is not None:
+        print(f"Re-ranking top {limit} results using {rerank_method} method...")
+        print(f"Reciprocal Rank Fusion Results for '{query}' (k={k}):\n")
+        search_results = hs.rrf_search(query, k, limit * 5)
+    else:
+        search_results = hs.rrf_search(query, k, limit)
+    
+    if rerank_method == "individual":
+        idx_to_ranks = rerank_search_results(query, search_results)
+        search_results = [search_results[idx] for idx, _ in idx_to_ranks]
+    elif rerank_method == "batch":
+        ranked_idxs = batch_rerank_search_results(query, search_results)
+        search_results = [search_results[idx] for idx in ranked_idxs]
+
     for i, doc in enumerate(search_results):
         print(f"{i + 1}. {doc['title']}\n   RRF Score: {doc['rrf_score']:.3f}")
         print(f"   BM25 Rank: {doc['bm25_rank']}, Semantic Rank: {doc['semantic_rank']}")

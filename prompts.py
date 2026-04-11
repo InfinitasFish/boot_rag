@@ -1,5 +1,5 @@
 
-QUERY_ENHANCE_SYSTEM_PROMPT = """Your answer should only contain an enhanced query string"""
+LLM_ENHANCE_SYSTEM_PROMPT = """You're RAG helpful assistant. Your answers should only contain asked result without additional context and explanations"""
 
 QUERY_ENHANCE_SPELL_PROMPTf = lambda query: f"""Fix any spelling errors in the user-provided movie search query below.
 Correct only clear, high-confidence typos. Do not rewrite, add, remove, or reorder words.
@@ -43,3 +43,32 @@ Examples:
 
 User query: {query}
 """
+
+RERANK_SEARCH_RESULTSf = lambda query, doc: f"""Rate how well this movie matches the search query.
+
+Query: "{query}"
+Movie: {doc.get("title", "")} - {doc.get("description", "")}
+
+Consider:
+- Direct relevance to query
+- User intent (what they're looking for)
+- Content appropriateness
+
+Rate 0-10 (10 = perfect match).
+Output ONLY the number in your response, no other text or explanation.
+
+Score:"""
+
+BATCH_RERANK_SEARCH_RESULTSf = lambda query, docs: f"""Rank the movies listed below by relevance to the following search query.
+
+Query: "{query}"
+
+Movies:
+{docs}
+
+Return ONLY the movie IDs (0-based) in order of relevance (best match first). Include ALL provided movie IDs in result. Return a valid JSON list, nothing else. 
+
+For example, result for five arbitrary movies may look like this:
+[4, 3, 0, 1, 2]
+
+Ranking:"""

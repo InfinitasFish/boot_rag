@@ -195,7 +195,7 @@ class ChunkedSemanticSearch(SemanticSearch):
         
         docs_agg_scores = {}
         query_emb = self.generate_embedding(query)
-        for doc_id, chunk_embeds in tqdm(self.chunk_embeddings.items()):
+        for doc_id, chunk_embeds in self.chunk_embeddings.items():
             # calculating max similarity as document score
             doc_score = -float("inf")
             # kinda slow I guess
