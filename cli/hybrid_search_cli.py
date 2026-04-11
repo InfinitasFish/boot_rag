@@ -43,10 +43,13 @@ def main() -> None:
             if args.enhance is not None:
                 print(f"Enhanced query ({args.enhance}): '{args.query}' -> '{query}'\n")
     
-            search_res = hybrid_norm_search(hs, args.query, args.alpha, args.limit)[:args.limit]
+            search_res = hybrid_norm_search(hs, args.query, args.alpha, args.limit)
+            # print("Results before reranking:\n")
+            # hybrid_norm_res_log(search_res)
+
             if args.rerank_method is not None:
                 print(f"Re-ranking top {args.limit} results using {args.rerank_method} method...")
-            search_res = rerank_search_results(query, search_res, args.rerank_method)
+            search_res = rerank_search_results(query, search_res, args.rerank_method)[:args.limit]
     
             hybrid_norm_res_log(search_res)
         case "rrf-search":
@@ -56,10 +59,13 @@ def main() -> None:
             if args.enhance is not None:
                 print(f"Enhanced query ({args.enhance}): '{args.query}' -> '{query}'\n")
 
-            search_res = hybrid_rrf_search(hs, query, args.k, args.limit)[:args.limit]
+            search_res = hybrid_rrf_search(hs, query, args.k, args.limit)
+            # print("Results before reranking:\n")
+            # hybrid_rrf_res_log(search_res)
+
             if args.rerank_method is not None:
                 print(f"Re-ranking top {args.limit} results using {args.rerank_method} method...")
-            search_res = rerank_search_results(query, search_res, args.rerank_method)
+            search_res = rerank_search_results(query, search_res, args.rerank_method)[:args.limit]
 
             print(f"Reciprocal Rank Fusion Results for '{query}' (k={args.k}):\n")
             hybrid_rrf_res_log(search_res)

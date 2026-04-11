@@ -21,8 +21,12 @@ def evaluate_rrf_search(limit: int=DEFAULT_TOP_K, k: float=DEFAULT_RRF_K, enhanc
 
         found_relevant_docs = [doc["title"] for doc in pred if doc["title"] in gt]
         precision_k = len(found_relevant_docs) / len(pred)
+        recall_k = len(found_relevant_docs) / len(gt)
+        f1_k = 2 * (precision_k * recall_k) / (precision_k + recall_k)
         print(f"- Query: {query}")
         print(f"  - Precision@{limit}: {precision_k:.4f}")
+        print(f"  - Recall@{limit}: {recall_k:.4f}")
+        print(f"  - F1 Score: {f1_k:.4f}")
         print(f"  - Retrieved: {', '.join([doc['title'] for doc in pred])}")
-        print(f"  - Relevant: {', '.join([doc_title for doc_title in found_relevant_docs])}")
+        print(f"  - Relevant: {', '.join([doc_title for doc_title in found_relevant_docs])}\n")
 
