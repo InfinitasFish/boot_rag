@@ -44,14 +44,18 @@ class InvertedIndex:
         if not doc_id in self.docmap:
             raise ValueError(f"Unknown doc_id in InvertedIndex.get_tf(): {doc_id}")
         term_token = preprocess_text_to_tokens_pipe(term)
-        if len(term_token) != 1:
-            raise ValueError("InvertedIndex.get_tf() accepts only one term\n")
+        if len(term_token) == 0:
+            return 0.0
+        elif len(term_token) > 1:
+            raise ValueError("InvertedIndex.get_bm25_df() accepts only one term\n")
         return self.term_frequencies[doc_id][term_token[0]]
     
     def get_idf(self, term):
         term_token = preprocess_text_to_tokens_pipe(term)
-        if len(term_token) != 1:
-            raise ValueError("InvertedIndex.get_idf() accepts only one term\n")
+        if len(term_token) == 0:
+            return 0.0
+        elif len(term_token) > 1:
+            raise ValueError("InvertedIndex.get_bm25_df() accepts only one term\n")
 
         # avoid zero-division
         doc_freq = len(self.index.get(term_token[0], []))
@@ -67,8 +71,10 @@ class InvertedIndex:
             raise ValueError(f"Unknown doc_id in InvertedIndex.get_bm25_tf(): {doc_id}")
 
         term_token = preprocess_text_to_tokens_pipe(term)
-        if len(term_token) != 1:
-            raise ValueError("InvertedIndex.get_bm25_tf() accepts only one term\n")
+        if len(term_token) == 0:
+            return 0.0
+        elif len(term_token) > 1:
+            raise ValueError("InvertedIndex.get_bm25_df() accepts only one term\n")
         
         # BM25 adjusts term frequency based on document length (penalize long docs, boost short)
         # b is normalization strength
@@ -80,7 +86,9 @@ class InvertedIndex:
     # from now on will try to add singnatures
     def get_bm25_idf(self, term: str) -> float:
         term_token = preprocess_text_to_tokens_pipe(term)
-        if len(term_token) != 1:
+        if len(term_token) == 0:
+            return 0.0
+        elif len(term_token) > 1:
             raise ValueError("InvertedIndex.get_bm25_df() accepts only one term\n")
 
         doc_freq = len(self.index.get(term_token[0], []))
@@ -93,6 +101,7 @@ class InvertedIndex:
 
     def bm25_search(self, query: str, limit: int=DEFAULT_TOP_K) -> list[dict]:
         query_terms = query.split()
+
         doc_to_score = {}
         for doc_id in self.docmap:
             bm25_score_sum = 0.0

@@ -1,15 +1,16 @@
 
-QUERY_ENHANCE_SYSTEM_PROMPT = """Your answer should only contain an enhanced query"""
+QUERY_ENHANCE_SYSTEM_PROMPT = """Your answer should only contain an enhanced query string"""
 
-QUERY_ENHANCE_SPELL_PROMPT = f"""Fix any spelling errors in the user-provided movie search query below.
+QUERY_ENHANCE_SPELL_PROMPTf = lambda query: f"""Fix any spelling errors in the user-provided movie search query below.
 Correct only clear, high-confidence typos. Do not rewrite, add, remove, or reorder words.
 Preserve punctuation and capitalization unless a change is required for a typo fix.
 If there are no spelling errors, or if you're unsure, output the original query unchanged.
 Output only the final query text, nothing else.
 
+User query: {query}
 """
 
-QUERY_REWRITE_PROMPT = f"""Rewrite the user-provided movie search query below to be more specific and searchable.
+QUERY_REWRITE_PROMPTf = lambda query: f"""Rewrite the user-provided movie search query below to be more specific and searchable.
 
 Consider:
 - Common movie knowledge (famous actors, popular films)
@@ -26,9 +27,10 @@ Examples:
 If you cannot improve the query, output the original unchanged.
 Output only the rewritten query text, nothing else.
 
+User query: {query}
 """
 
-QUERY_EXPAND_PROMPT = f"""Expand the user-provided movie search query below with related terms.
+QUERY_EXPAND_PROMPTf = lambda query: f"""Expand the user-provided movie search query below with related terms.
 
 Add synonyms and related concepts that might appear in movie descriptions.
 Keep expansions relevant and focused.
@@ -39,4 +41,5 @@ Examples:
 - "action movie with bear" -> "action thriller bear chase fight adventure"
 - "comedy with bear" -> "comedy funny bear humor lighthearted"
 
+User query: {query}
 """

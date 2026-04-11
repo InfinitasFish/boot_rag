@@ -23,6 +23,7 @@ def main() -> None:
     hybrid_rrf_search_parser = subparsers.add_parser("rrf-search", help="Search relevant docs using hybrid rrf score (bm25 & semantic)")
     hybrid_rrf_search_parser.add_argument("query", type=str, help="Query to find relevant documents for")
     hybrid_rrf_search_parser.add_argument("--enhance", type=str, choices=["spell", "rewrite", "expand"], help="Query enhancement method")
+    hybrid_rrf_search_parser.add_argument("--rerank-method", type=str, choices=["individual"], help="Rerank search results using LLM")
     hybrid_rrf_search_parser.add_argument("--limit", type=int, nargs='?', default=DEFAULT_TOP_K, help="Limit how much documents will contain in result")
     hybrid_rrf_search_parser.add_argument("-k", type=float, nargs='?', default=DEFAULT_RRF_K, help="K parameter for calculating RRF score")
 
