@@ -23,7 +23,7 @@ def main() -> None:
     hybrid_rrf_search_parser = subparsers.add_parser("rrf-search", help="Search relevant docs using hybrid rrf score (bm25 & semantic)")
     hybrid_rrf_search_parser.add_argument("query", type=str, help="Query to find relevant documents for")
     hybrid_rrf_search_parser.add_argument("--enhance", type=str, choices=["spell", "rewrite", "expand"], help="Query enhancement method")
-    hybrid_rrf_search_parser.add_argument("--rerank-method", type=str, choices=["individual", "batch"], help="Rerank search results using LLM")
+    hybrid_rrf_search_parser.add_argument("--rerank-method", type=str, choices=["individual", "batch", "cross_encoder"], help="Rerank search results using LLM")
     hybrid_rrf_search_parser.add_argument("--limit", type=int, nargs='?', default=DEFAULT_TOP_K, help="Limit how much documents will contain in result")
     hybrid_rrf_search_parser.add_argument("-k", type=float, nargs='?', default=DEFAULT_RRF_K, help="K parameter for calculating RRF score")
 
@@ -37,17 +37,7 @@ def main() -> None:
         case "weighted-search":
             hybrid_norm_score_search(args.query, args.alpha, args.limit)
         case "rrf-search":
-            query = args.query
-            if args.enhance == "spell":
-                query = enhance_spelling_user_query(args.query)
-                print(f"Enhanced query ({args.enhance}): '{args.query}' -> '{query}'\n")
-            elif args.enhance == "rewrite":
-                query = rewrite_user_query(args.query)
-                print(f"Enhanced query ({args.enhance}): '{args.query}' -> '{query}'\n")
-            elif args.enhance == "expand":
-                query = expand_user_query(args.query)
-                print(f"Enhanced query ({args.enhance}): '{args.query}' -> '{query}'\n")
-            hybrid_rrf_score_search(query, args.k, args.limit, args.rerank_method)
+            hybrid_rrf_score_search(args.query, args.k, args.limit, args.enhance, args.rerank_method)
         case _:
             parser.print_help()
 

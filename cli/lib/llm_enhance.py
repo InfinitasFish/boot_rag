@@ -2,8 +2,9 @@ import argparse
 import os
 import ollama
 from pydantic import BaseModel
+from sentence_transformers import CrossEncoder
 
-from consts import LLM_MODEL, LLM_SEED, LLM_TEMPERATURE, DEFAULT_DESCRIPTION_LEN
+from consts import DEFAULT_DESCRIPTION_LEN, LLM_MODEL, LLM_SEED, LLM_TEMPERATURE, CROSS_RERANKER_MODEL
 from prompts import LLM_ENHANCE_SYSTEM_PROMPT, QUERY_ENHANCE_SPELL_PROMPTf, QUERY_REWRITE_PROMPTf, QUERY_EXPAND_PROMPTf, RERANK_SEARCH_RESULTSf, BATCH_RERANK_SEARCH_RESULTSf
 
 
@@ -60,7 +61,7 @@ def rerank_search_results(query: str, search_results: list[dict], model: str=LLM
 
 
 def batch_rerank_search_results(query: str, search_results: list[dict], model: str=LLM_MODEL) -> list[int]:
-    docs_str = '\n'.join([f"{i}. {doc['title']} : {doc['description'][:DEFAULT_DESCRIPTION_LEN]}" for i, doc in enumerate(search_results)])
+    docs_str = '\n'.join([f"{i}. {doc.get('title', '')} : {doc.get('description', '')[:DEFAULT_DESCRIPTION_LEN]}" for i, doc in enumerate(search_results)])
     batch_score_prompt = BATCH_RERANK_SEARCH_RESULTSf(query, docs_str)
     messages = [{"role": "system", "content": LLM_ENHANCE_SYSTEM_PROMPT}, {"role": "user", "content": batch_score_prompt}]
     response = ollama.chat(model=model, messages=messages, format=BatchRerankOutput.model_json_schema(), options={"seed": LLM_SEED, "temperature": LLM_TEMPERATURE,})
@@ -76,4 +77,16 @@ def batch_rerank_search_results(query: str, search_results: list[dict], model: s
         print(f"Docs ranks weren't changed")
         ranked_idxs = [i for i in range(len(search_results))]
 
+    return ranked_idxs
+
+
+def cross_encoder_rerank_search_results(query: str, search_results: list[dict], model: str=CROSS_RERANKER_MODEL) -> list[int]:
+    # https://www.sbert.net/docs/package_reference/cross_encoder/model.html
+    query_doc_pairs = [(query, f"{doc.get('title', '')} - {doc.get('description', '')}") for doc in search_results]
+    ce = CrossEncoder(model_name_or_path=model)
+    # scores are aligned with .predict() input
+    scores = ce.predict(query_doc_pairs)
+    sorted_relevant_search_results = sorted(list(zip(list(range(len(scores))), scores)), key=lambda it: it[1], reverse=True)
+
+    ranked_idxs = [idx for idx, _ in sorted_relevant_search_results]
     return ranked_idxs
