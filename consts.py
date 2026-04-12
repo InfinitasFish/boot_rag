@@ -9,7 +9,7 @@ DOCMAP_PATH = os.path.join(ROOT_DIR, "cache/docmap.pkl")
 TERM_FREQ_PATH = os.path.join(ROOT_DIR, "cache/term_freq.pkl")
 DOC_LENGTHS_PATH = os.path.join(ROOT_DIR, "cache/doc_lengths.pkl")
 
-DEFAULT_DESCRIPTION_LEN = 250
+DEFAULT_DESCRIPTION_LEN = 200
 BM25_K1 = 1.5
 BM25_B = 0.75
 DEFAULT_TOP_K = 5

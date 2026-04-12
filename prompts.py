@@ -1,5 +1,5 @@
 
-LLM_ENHANCE_SYSTEM_PROMPT = """You're RAG helpful assistant. Your answers should only contain asked result without additional context and explanations"""
+LLM_SYSTEM_PROMPT = """You're a RAG helpful assistant. Your answers should only contain asked information"""
 
 QUERY_ENHANCE_SPELL_PROMPTf = lambda query: f"""Fix any spelling errors in the user-provided movie search query below.
 Correct only clear, high-confidence typos. Do not rewrite, add, remove, or reorder words.
@@ -90,3 +90,48 @@ Do NOT give any numbers other than 0, 1, 2, or 3.
 
 Return ONLY the scores in the same order you were given the documents. Include ALL provided movie IDs in result. Return a valid JSON list, nothing else. For example:
 [2, 0, 3, 2, 0, 1]"""
+
+RAG_ANSWER_QUESTIONf = lambda question, docs: f"""
+Answer the user's question based on the provided movies.
+
+Question: {question}
+
+Documents:
+{docs}
+
+Instructions:
+- Answer questions directly and concisely
+- Don't be cringe or hype-y
+- Talk like a normal person would in a chat conversation
+
+Answer:"""
+
+RAG_SUMMARIZE_RESULTSf = lambda query, docs: f"""Provide information useful to the query below by synthesizing data from multiple search results in detail.
+
+The goal is to provide comprehensive information so that users know what their options are.
+Your response should be information-dense and concise, with several key pieces of information about the genre, plot, etc. of each movie.
+
+Query: {query}
+
+Search results:
+{docs}
+
+Provide a comprehensive 3–4 sentence answer that combines information from multiple sources:"""
+
+RAG_ANSWER_wCITATIONSf = lambda query, docs: f"""Answer the query below and give information based on the provided documents.
+
+If not enough information is available to provide a good answer, say so, but give the best answer possible while citing the sources available.
+
+Query: {query}
+
+Documents:
+{docs}
+
+Instructions:
+- Provide a comprehensive answer that addresses the query
+- Cite sources in the format [1], [2], etc. when referencing information
+- If sources disagree, mention the different viewpoints
+- If the answer isn't in the provided documents, say "I don't have enough information"
+- Be direct and informative
+
+Answer:"""

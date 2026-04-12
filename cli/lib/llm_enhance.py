@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from sentence_transformers import CrossEncoder
 
 from consts import DEFAULT_DESCRIPTION_LEN, LLM_MODEL, LLM_SEED, LLM_TEMPERATURE, CROSS_RERANKER_MODEL
-from prompts import LLM_ENHANCE_SYSTEM_PROMPT, QUERY_ENHANCE_SPELL_PROMPTf, QUERY_REWRITE_PROMPTf, QUERY_EXPAND_PROMPTf, RERANK_SEARCH_RESULTSf, BATCH_RERANK_SEARCH_RESULTSf, JUDGE_SEARCH_RESULTSf
+from prompts import LLM_SYSTEM_PROMPT, QUERY_ENHANCE_SPELL_PROMPTf, QUERY_REWRITE_PROMPTf, QUERY_EXPAND_PROMPTf, RERANK_SEARCH_RESULTSf, BATCH_RERANK_SEARCH_RESULTSf, JUDGE_SEARCH_RESULTSf
 
 
 class EnhanceQueryOutput(BaseModel):
@@ -23,7 +23,7 @@ class JudgeScoresOutput(BaseModel):
 
 def enhance_spelling_user_query(query: str, model: str=LLM_MODEL) -> str:
     enhance_prompt = QUERY_ENHANCE_SPELL_PROMPTf(query)
-    messages = [{"role": "system", "content": LLM_ENHANCE_SYSTEM_PROMPT}, {"role": "user", "content": enhance_prompt}]
+    messages = [{"role": "system", "content": LLM_SYSTEM_PROMPT}, {"role": "user", "content": enhance_prompt}]
     response = ollama.chat(model=model, messages=messages, format=EnhanceQueryOutput.model_json_schema(), options={"seed": LLM_SEED, "temperature": LLM_TEMPERATURE,})
     new_query = EnhanceQueryOutput.model_validate_json(response["message"]["content"]).query
 
@@ -32,7 +32,7 @@ def enhance_spelling_user_query(query: str, model: str=LLM_MODEL) -> str:
 
 def rewrite_user_query(query: str, model: str=LLM_MODEL) -> str:
     rewrite_prompt = QUERY_REWRITE_PROMPTf(query)
-    messages = [{"role": "system", "content": LLM_ENHANCE_SYSTEM_PROMPT}, {"role": "user", "content": rewrite_prompt}]
+    messages = [{"role": "system", "content": LLM_SYSTEM_PROMPT}, {"role": "user", "content": rewrite_prompt}]
     response = ollama.chat(model=model, messages=messages, format=EnhanceQueryOutput.model_json_schema(), options={"seed": LLM_SEED, "temperature": LLM_TEMPERATURE,})
     new_query = EnhanceQueryOutput.model_validate_json(response["message"]["content"]).query
 
@@ -41,7 +41,7 @@ def rewrite_user_query(query: str, model: str=LLM_MODEL) -> str:
 
 def expand_user_query(query: str, model: str=LLM_MODEL) -> str:
     expand_prompt = QUERY_EXPAND_PROMPTf(query)
-    messages = [{"role": "system", "content": LLM_ENHANCE_SYSTEM_PROMPT}, {"role": "user", "content": expand_prompt}]
+    messages = [{"role": "system", "content": LLM_SYSTEM_PROMPT}, {"role": "user", "content": expand_prompt}]
     response = ollama.chat(model=model, messages=messages, format=EnhanceQueryOutput.model_json_schema(), options={"seed": LLM_SEED, "temperature": LLM_TEMPERATURE,})
     new_query = EnhanceQueryOutput.model_validate_json(response["message"]["content"]).query
 
@@ -52,7 +52,7 @@ def rerank_search_results(query: str, search_results: list[dict], model: str=LLM
     idx_to_rank_score = {}
     for i, doc in enumerate(search_results):
         score_prompt = RERANK_SEARCH_RESULTSf(query, doc)
-        messages = [{"role": "system", "content": LLM_ENHANCE_SYSTEM_PROMPT}, {"role": "user", "content": score_prompt}]
+        messages = [{"role": "system", "content": LLM_SYSTEM_PROMPT}, {"role": "user", "content": score_prompt}]
         response = ollama.chat(model=model, messages=messages, format=IndividualScoreOutput.model_json_schema(), options={"seed": LLM_SEED, "temperature": LLM_TEMPERATURE,})
         try:
             doc_score = IndividualScoreOutput.model_validate_json(response["message"]["content"]).score
@@ -69,7 +69,7 @@ def rerank_search_results(query: str, search_results: list[dict], model: str=LLM
 def batch_rerank_search_results(query: str, search_results: list[dict], model: str=LLM_MODEL) -> list[int]:
     docs_str = '\n'.join([f"{i}. {doc.get('title', '')} : {doc.get('description', '')[:DEFAULT_DESCRIPTION_LEN]}" for i, doc in enumerate(search_results)])
     batch_score_prompt = BATCH_RERANK_SEARCH_RESULTSf(query, docs_str)
-    messages = [{"role": "system", "content": LLM_ENHANCE_SYSTEM_PROMPT}, {"role": "user", "content": batch_score_prompt}]
+    messages = [{"role": "system", "content": LLM_SYSTEM_PROMPT}, {"role": "user", "content": batch_score_prompt}]
     response = ollama.chat(model=model, messages=messages, format=BatchRerankOutput.model_json_schema(), options={"seed": LLM_SEED, "temperature": LLM_TEMPERATURE,})
     ranked_idxs = []
     try:
@@ -99,7 +99,7 @@ def cross_encoder_rerank_search_results(query: str, search_results: list[dict], 
 def judge_search_results(query: str, search_results: list[dict], model: str=LLM_MODEL) -> list[int]:
     docs_str = '\n'.join([f"{i}. {doc.get('title', '')} : {doc.get('description', '')[:DEFAULT_DESCRIPTION_LEN]}" for i, doc in enumerate(search_results)])
     judge_search_results_prompt = JUDGE_SEARCH_RESULTSf(query, docs_str)
-    messages = [{"role": "system", "content": LLM_ENHANCE_SYSTEM_PROMPT}, {"role": "user", "content": judge_search_results_prompt}]
+    messages = [{"role": "system", "content": LLM_SYSTEM_PROMPT}, {"role": "user", "content": judge_search_results_prompt}]
     response = ollama.chat(model=model, messages=messages, format=JudgeScoresOutput.model_json_schema(), options={"seed": LLM_SEED, "temperature": LLM_TEMPERATURE,})
     scores = []
     try:
