@@ -91,8 +91,7 @@ Do NOT give any numbers other than 0, 1, 2, or 3.
 Return ONLY the scores in the same order you were given the documents. Include ALL provided movie IDs in result. Return a valid JSON list, nothing else. For example:
 [2, 0, 3, 2, 0, 1]"""
 
-RAG_ANSWER_QUESTIONf = lambda question, docs: f"""
-Answer the user's question based on the provided movies.
+RAG_ANSWER_QUESTIONf = lambda question, docs: f"""Answer the user's question based on the provided movies.
 
 Question: {question}
 
@@ -135,3 +134,9 @@ Instructions:
 - Be direct and informative
 
 Answer:"""
+
+MERGE_QUERY_IMAGE = f"""Given the included image and text query, rewrite the text query to improve search results from a movie database. Make sure to:
+- Synthesize visual and textual information
+- Focus on movie-specific details (actors, scenes, style, etc.)
+- Return only the rewritten query, without any additional commentary"""
+

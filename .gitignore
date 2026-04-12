@@ -10,7 +10,7 @@ wheels/
 .venv
 
 # data & cache
-# data/
+data/paddington.jpeg
 cache/
 
 # testing stuff

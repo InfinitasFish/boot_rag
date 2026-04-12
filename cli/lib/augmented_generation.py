@@ -44,4 +44,3 @@ def rag_answer_wcitations(query: str, search_results: list[dict], model: str=LLM
     response = ollama.chat(model=model, messages=messages, options={"seed": LLM_SEED, "temperature": LLM_TEMPERATURE,})
     answer = response["message"]["content"]
     return answer
-
