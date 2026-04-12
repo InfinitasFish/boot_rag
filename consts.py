@@ -30,5 +30,6 @@ LLM_VISUAL_MODEL = "qwen3-vl:4b"
 CLIP_MODEL = "clip-ViT-B-32"
 
 EMBEDDINGS_SAVE_PATH = os.path.join(ROOT_DIR, "cache/doc_embeddings.npy")
+CLIP_TEXT_EMBEDDINGS_SAVE_PATH = os.path.join(ROOT_DIR, "cache/clip_doc_embeddings.npy")
 CHUNK_EMBEDDINGS_SAVE_PATH = os.path.join(ROOT_DIR, "cache/doc_chunk_embeddings.npy")
 CHUNK_META_SAVE_PATH = os.path.join(ROOT_DIR, "cache/doc_chunk_meta.json")
