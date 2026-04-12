@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from sentence_transformers import CrossEncoder
 
 from consts import DEFAULT_DESCRIPTION_LEN, LLM_MODEL, LLM_SEED, LLM_TEMPERATURE, CROSS_RERANKER_MODEL
-from prompts import LLM_ENHANCE_SYSTEM_PROMPT, QUERY_ENHANCE_SPELL_PROMPTf, QUERY_REWRITE_PROMPTf, QUERY_EXPAND_PROMPTf, RERANK_SEARCH_RESULTSf, BATCH_RERANK_SEARCH_RESULTSf
+from prompts import LLM_ENHANCE_SYSTEM_PROMPT, QUERY_ENHANCE_SPELL_PROMPTf, QUERY_REWRITE_PROMPTf, QUERY_EXPAND_PROMPTf, RERANK_SEARCH_RESULTSf, BATCH_RERANK_SEARCH_RESULTSf, JUDGE_SEARCH_RESULTSf
 
 
 class EnhanceQueryOutput(BaseModel):
@@ -16,6 +16,9 @@ class IndividualScoreOutput(BaseModel):
 
 class BatchRerankOutput(BaseModel):
     ranks: list[int]
+
+class JudgeScoresOutput(BaseModel):
+    scores: list[int]
 
 
 def enhance_spelling_user_query(query: str, model: str=LLM_MODEL) -> str:
@@ -70,10 +73,9 @@ def batch_rerank_search_results(query: str, search_results: list[dict], model: s
     response = ollama.chat(model=model, messages=messages, format=BatchRerankOutput.model_json_schema(), options={"seed": LLM_SEED, "temperature": LLM_TEMPERATURE,})
     ranked_idxs = []
     try:
-        # "[1, 2, 3]" -> [1, 2, 3]
-        # ranked_idxs = response["message"]["content"].strip()[1:-1].split(',')
         ranked_idxs = BatchRerankOutput.model_validate_json(response["message"]["content"]).ranks
-        assert len(ranked_idxs) == len(search_results)
+        if len(ranked_idxs) != len(search_results):
+            raise ValueError("Ranked_idxs and search_results have different lengths")
     except ValueError as e:
         print(e)
         print(f"Docs ranks weren't changed")
@@ -92,3 +94,30 @@ def cross_encoder_rerank_search_results(query: str, search_results: list[dict], 
 
     ranked_idxs = [idx for idx, _ in sorted_relevant_search_results]
     return ranked_idxs
+
+
+def judge_search_results(query: str, search_results: list[dict], model: str=LLM_MODEL) -> list[int]:
+    docs_str = '\n'.join([f"{i}. {doc.get('title', '')} : {doc.get('description', '')[:DEFAULT_DESCRIPTION_LEN]}" for i, doc in enumerate(search_results)])
+    judge_search_results_prompt = JUDGE_SEARCH_RESULTSf(query, docs_str)
+    messages = [{"role": "system", "content": LLM_ENHANCE_SYSTEM_PROMPT}, {"role": "user", "content": judge_search_results_prompt}]
+    response = ollama.chat(model=model, messages=messages, format=JudgeScoresOutput.model_json_schema(), options={"seed": LLM_SEED, "temperature": LLM_TEMPERATURE,})
+    scores = []
+    try:
+        scores = JudgeScoresOutput.model_validate_json(response["message"]["content"]).scores
+        if len(scores) != len(search_results):
+            raise ValueError("Judge_scores and search_results have different lengths")
+    except ValueError as e:
+        print(e)
+        print(f"Docs scores weren't given")
+        scores = [0 for i in range(len(search_results))]
+
+    return scores
+
+
+def judge_scores_log(scores: str, search_results: list[dict]):
+    idxs_scores_perm = sorted( list(zip( list(range(len(scores))), scores)), key=lambda it: it[1], reverse=True)
+    print(f"LLM judge evaluation report:\n")
+    for i, (idx, score) in enumerate(idxs_scores_perm):
+        doc = search_results[idx]
+        print(f"{i + 1}. {doc['title']}: {score}/3")
+
